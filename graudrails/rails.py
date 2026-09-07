@@ -41,7 +41,7 @@ def _is_off_topic(message: str) -> bool:
         np.linalg.norm(query_vec) * np.linalg.norm(_domain_embedding)
     )
     logfire.info(f"🛡️ Semantic similarity score: {similarity:.4f}")
-    return float(similarity) < 0.65
+    return float(similarity) < 0.60
 
 
 def guard(message: str) -> tuple[bool, str | None]:
