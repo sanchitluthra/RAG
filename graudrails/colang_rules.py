@@ -16,7 +16,7 @@ JAILBREAK_RESPONSE = "I maintain consistent guidelines regardless of how I am pr
 OFF_TOPIC_KEYWORDS = [
     "joke", "poem", "weather", "recipe", "cook", "coffee",
     "movie", "song", "president", "history", "restaurant",
-    "homework", "math", "stock", "invest", "story", "capital of",
+    "homework", "math", "stock", "invest", "story",
     "who won", "recommend a", "what should i eat",
     "dinner", "lunch", "breakfast", "food", "bake", "cake"
 ]
