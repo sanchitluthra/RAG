@@ -13,6 +13,7 @@ logfire.configure(token=os.getenv("LOGFIRE_TOKEN"))
 from fastapi import FastAPI, Response
 from agents.graph import rag_agent
 from graudrails import initialize_rails, guard
+from langgraph.checkpoint.memory import MemorySaver
 
 from pydantic import BaseModel
 from typing import Optional
@@ -66,12 +67,40 @@ def query(request: QueryRequest):
     
     # Configuration for Memory (Thread ID)
     config = {"configurable": {"thread_id": thread_id}}
+
+    # Determine if this thread already has conversation history
+    # so guardrails can combine previous context on follow-up cues for Gate 4.
+    has_history = False
+    last_user_question = ""
+    history_text = ""
+    try:
+        checkpoint = rag_agent.checkpointer.get(config)
+        msgs = checkpoint.get("channel_values", {}).get("messages", []) if checkpoint else []
+        if msgs:
+            has_history = True
+            for m in msgs:
+                history_text += f"{m.get('role', '')}: {m.get('content', '')}\n"
+                if m.get("role") == "user":
+                    last_user_question = m.get("content", "")
+    except Exception:
+        pass  # First message or checkpointer unavailable — treat as no history
     
     try:
-        # Gate 1: NeMo Guardrails — blocks off-topic, jailbreaks, and handles dialog
-        rail_fired, rail_response = guard(q)
+        # Gate 1: Guardrails — blocks off-topic, jailbreaks, and handles dialog
+        rail_fired, rail_response = guard(
+            q,
+            has_history=has_history,
+            last_user_question=last_user_question,
+            history_text=history_text
+        )
         if rail_fired:
-            logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
+            # Distinguish dialog responses (Gate 1) from actual blocks (Gate 2/3/4)
+            from graudrails.colang_rules import GREETING_RESPONSE, FAREWELL_RESPONSE, CAPABILITIES_RESPONSE
+            dialog_responses = {GREETING_RESPONSE, FAREWELL_RESPONSE, CAPABILITIES_RESPONSE}
+            if rail_response in dialog_responses:
+                logfire.info(f"🛡️ Gate 1 dialog response | thread={thread_id}")
+            else:
+                logfire.info(f"🛡️ Request blocked by guardrails | thread={thread_id}")
             return {
                 "question": q,
                 "answer": rail_response,
