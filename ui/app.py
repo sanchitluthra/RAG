@@ -13,16 +13,15 @@ load_dotenv(dotenv_path=env_path)
 
 
 # Initialize Logfire
-try:
-    token = os.getenv("LOGFIRE_TOKEN")
-    if not token:
-        print("ERROR: LOGFIRE_TOKEN is empty or None!")
-    logfire.configure(token=token)
-    # logfire.instrument_requests() # Disabled due to OpenTelemetry bug on Windows: MeterProvider.get_meter() got multiple values for argument 'version'
-    LOGFIRE_STATUS = "Connected & Tracing"
-except Exception as e:
-    print(f"Logfire Init Error in UI: {e}")
-    LOGFIRE_STATUS = f"Standby (Error: {e})"
+token = os.getenv("LOGFIRE_TOKEN")
+LOGFIRE_STATUS = None
+if token:
+    try:
+        logfire.configure(token=token)
+        LOGFIRE_STATUS = "Connected & Tracing"
+    except Exception as e:
+        print(f"Logfire Init Error in UI: {e}")
+        LOGFIRE_STATUS = None
     
 
 
@@ -51,7 +50,8 @@ if "messages" not in st.session_state:
 with st.sidebar:
     st.title("🧠 Agent OS")
     st.markdown("---")
-    st.success(f"Logfire: {LOGFIRE_STATUS}")
+    if LOGFIRE_STATUS:
+        st.success(f"Logfire: {LOGFIRE_STATUS}")
     st.info(f"Memory ID: {st.session_state.session_id[:8]}")
     
     if st.button("🗑️ Clear History & Memory", width="stretch", type="primary"):
